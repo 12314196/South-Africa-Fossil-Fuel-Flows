@@ -1,0 +1,390 @@
+#Print the plots in this screen
+%matplotlib inline
+
+#Be able to plot images saved in the hard drive
+from IPython.display import Image 
+
+#Make the notebook wider
+from IPython.core.display import display, HTML 
+display(HTML("<style>.container { width:90% !important; }</style>"))
+
+import seaborn as sns
+import pylab as plt
+import pandas as pd
+import numpy as np
+import statsmodels.formula.api as smf
+import openpyxl as xl
+import geopandas as gpd
+import gspread 
+from oauth2client.service_account import ServiceAccountCredentials
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
+from matplotlib import cm
+
+%pwd
+#checking the working director
+
+%cd C:\\Users\\amrem\\Documents\\PhD Thesis\\Software
+#setting the working directory to the desired location so I can access the spreadsheets etc. 
+
+scope = ['https://spreadsheets.google.com/feeds'] 
+credentials = ServiceAccountCredentials.from_json_keyfile_name('./psychic-upgrade-297714-85e1f0612fda.json', scope) 
+gc = gspread.authorize(credentials)
+
+spreadsheet_key = '1ig8vjBP1TVMhbWxfF5Nywy1Dxg0hfLVj6n2xFdq04Vk' 
+
+book = gc.open_by_key(spreadsheet_key) 
+worksheet = book.worksheet("EP Inventory") 
+table = worksheet.get_all_values()
+
+df = pd.DataFrame(table[1:], columns=table[0])
+
+df.head()
+
+df.dtypes
+
+df['shares_2020'] = df['shares_2020'].astype('float64')
+df['shares_2021'] = df['shares_2021'].astype('float64')
+df['lat_sh'] = df['lat_sh'].astype('float64')
+df['lon_sh'] = df['lon_sh'].astype('float64')
+df['lat_ep'] = df['lat_ep'].astype('float64')
+df['lon_ep'] = df['lon_ep'].astype('float64')
+df['mcap_2020'] = df['mcap_2020'].astype('float64')
+df['mcap_2021'] = df['mcap_2021'].astype('float64')
+df['frac_mcap'] = df['frac_mcap'].astype('float64')
+df['frac_mcap_21'] = df['frac_mcap_21'].astype('float64')
+
+gdf = gpd.GeoDataFrame(df)
+#converting the pandas dataframe into a geodataframe
+
+gdf.head()
+
+world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
+world = world[(world.name!="Antarctica")]
+
+cities = gpd.read_file(gpd.datasets.get_path('naturalearth_cities'))
+
+equity_cnt = gdf.groupby(["lon_sh","lat_sh","lon_ep","lat_ep"]).sum()[["shares_2020"]].reset_index()
+equity_cnt_21 = gdf.groupby(["lon_sh","lat_sh","lon_ep","lat_ep"]).sum()[["shares_2021"]].reset_index()
+
+
+equity_cnt_21.head()
+
+firm_cnt = gdf.groupby(["lon_ep","lat_ep"]).sum()[["frac_mcap"]].reset_index()
+firm_cnt_21 = gdf.groupby(["lon_ep","lat_ep"]).sum()[["frac_mcap_21"]].reset_index()
+
+
+firm_cnt_21.head()
+
+dfms = df[df["New MS?"] == "Y"]
+gdfms = gpd.GeoDataFrame(dfms)
+
+dfei = df[df["EIUG?"] == "Y"]
+gdfei = gpd.GeoDataFrame(dfei)
+
+dfms.head()
+
+firm_cnt_21ms = gdfms.groupby(["lon_ep","lat_ep"]).sum()[["frac_mcap_21"]].reset_index()
+
+equity_cnt_21ms = gdfms.groupby(["lon_sh","lat_sh","lon_ep","lat_ep"]).sum()[["shares_2021"]].reset_index()
+
+
+firm_cntei = gdfei.groupby(["lon_ep","lat_ep"]).sum()[["frac_mcap"]].reset_index()
+firm_cnt_21ei = gdfei.groupby(["lon_ep","lat_ep"]).sum()[["frac_mcap_21"]].reset_index()
+
+equity_cntei = gdfei.groupby(["lon_sh","lat_sh","lon_ep","lat_ep"]).sum()[["shares_2020"]].reset_index()
+equity_cnt_21ei = gdfei.groupby(["lon_sh","lat_sh","lon_ep","lat_ep"]).sum()[["shares_2021"]].reset_index()
+
+#https://matplotlib.org/3.1.0/gallery/color/named_colors.html
+#https://coderzcolumn.com/tutorials/data-science/how-to-create-connection-map-chart-in-python-jupyter-notebook-plotly-and-geopandas#1
+#https://coderzcolumn.com/tutorials/data-science/cartopy-basic-maps-scatter-map-bubble-map-and-connection-map
+
+
+## Plot world
+world.plot(figsize=(25,13), edgecolor="darkorange", color="bisque");
+
+plt.axis('off')
+
+legend_elements = [Line2D([0], [0], marker='o', color='black', label='FF Company HQ (markers = fraction total market cap)',
+                          markerfacecolor='black', markersize=15),
+                   Line2D([0], [0], marker='o', color='steelblue', label='Shareholder HQ',
+                          markerfacecolor='steelblue', markersize=15, alpha=0.5),
+                   Patch(facecolor='steelblue', edgecolor='w', alpha=0.5,
+                         label='Share Value June 2020')]
+
+for slat, dlat, slon, dlon, shares in zip(equity_cnt["lat_sh"], equity_cnt["lat_ep"],
+                     equity_cnt["lon_sh"], equity_cnt["lon_ep"],
+                     equity_cnt["shares_2020"]):
+        plt.plot([slon, dlon-3], [slat, dlat], linewidth=shares/2000, color="steelblue", alpha=0.5)
+        plt.scatter( [slon], [slat], color="steelblue", alpha=0.5, s=shares/30)
+
+for slat, slon, mcap in zip(firm_cnt["lat_ep"], firm_cnt["lon_ep"],
+                     firm_cnt["frac_mcap"]):
+        plt.scatter([slon-3], [slat], color="black", alpha=0.7, s=mcap*50)
+        
+plt.title("South African Firm Shareholders 2020")
+plt.legend(handles=legend_elements, loc="center left")   
+
+## Plot world
+world.plot(figsize=(25,13), edgecolor="darkorange", color="bisque");
+
+plt.axis('off')
+
+legend_elements = [Line2D([0], [0], marker='o', color='black', label='FF Company HQ (markers = fraction total market cap)',
+                          markerfacecolor='white', markersize=15),
+                   Line2D([0], [0], marker='o', color='firebrick', label='Shareholder HQ',
+                          markerfacecolor='firebrick', markersize=15, alpha=0.5),
+                   Patch(facecolor='firebrick', edgecolor='w', alpha=0.5,
+                         label='Share Value June 2021')]
+
+for slat, dlat, slon, dlon, shares in zip(equity_cnt_21["lat_sh"], equity_cnt_21["lat_ep"],
+                     equity_cnt_21["lon_sh"], equity_cnt_21["lon_ep"],
+                     equity_cnt_21["shares_2021"]):
+        plt.plot([slon, dlon-3], [slat, dlat], linewidth=shares/2000, color="firebrick", alpha=0.5)
+        plt.scatter( [slon], [slat], color="firebrick", alpha=0.3, s=shares/30)
+
+for slat, slon, mcap in zip(firm_cnt_21["lat_ep"], firm_cnt_21["lon_ep"],
+                     firm_cnt_21["frac_mcap_21"]):
+        plt.scatter([slon-3], [slat], color="white", alpha=0.8, s=mcap*80, edgecolor="black")
+        
+plt.title("South African Firm Shareholders 2021")
+plt.legend(handles=legend_elements, loc="center left")   
+
+## Plot world
+world.plot(figsize=(25,13), edgecolor="darkorange", color="bisque");
+
+plt.axis('off')
+
+legend_elements = [Line2D([0], [0], marker='o', color='black', label='FF Company HQ (markers = fraction total market cap 21)',
+                          markerfacecolor='white', markersize=15),
+                   Line2D([0], [0], marker='o', color='firebrick', label='Shareholder HQ',
+                          markerfacecolor='firebrick', markersize=15, alpha=0.5),
+                   Patch(facecolor='firebrick', edgecolor='w', alpha=0.5,
+                         label='Share Value June 2021'),
+                  Line2D([0], [0], marker='o', color='black', label='FF Company HQ (markers = fraction total market cap 20)',
+                          markerfacecolor='black', markersize=15),
+                   Line2D([0], [0], marker='o', color='steelblue', label='Shareholder HQ',
+                          markerfacecolor='steelblue', markersize=15, alpha=0.5),
+                   Patch(facecolor='steelblue', edgecolor='w', alpha=0.5,
+                         label='Share Value June 2020')]
+
+for slat, dlat, slon, dlon, shares in zip(equity_cnt_21["lat_sh"], equity_cnt_21["lat_ep"],
+                     equity_cnt_21["lon_sh"], equity_cnt_21["lon_ep"],
+                     equity_cnt_21["shares_2021"]):
+        plt.plot([slon, dlon-3], [slat, dlat], linewidth=shares/3000, color="firebrick", alpha=0.5)
+        plt.scatter( [slon], [slat], color="firebrick", alpha=0.3, s=shares/30)
+
+for slat, slon, mcap in zip(firm_cnt_21["lat_ep"], firm_cnt_21["lon_ep"],
+                     firm_cnt_21["frac_mcap_21"]):
+        plt.scatter([slon-3], [slat], color="white", alpha=0.7, s=mcap*50, edgecolor="black")
+        
+
+for slat, dlat, slon, dlon, shares in zip(equity_cnt["lat_sh"], equity_cnt["lat_ep"],
+                     equity_cnt["lon_sh"], equity_cnt["lon_ep"],
+                     equity_cnt["shares_2020"]):
+        plt.plot([slon, dlon-3], [slat, dlat], linewidth=shares/3000, color="steelblue", alpha=0.5)
+        plt.scatter( [slon], [slat], color="steelblue", alpha=0.3, s=shares/30)
+
+for slat, slon, mcap in zip(firm_cnt["lat_ep"], firm_cnt["lon_ep"],
+                     firm_cnt["frac_mcap"]):
+        plt.scatter([slon-3], [slat], color="black", alpha=0.8, s=mcap*50)
+        
+plt.title("South African Firm Shareholders 2020/1")
+plt.legend(handles=legend_elements, loc="center left")   
+
+## Plot world
+world.plot(figsize=(25,13), edgecolor="darkorange", color="bisque");
+
+plt.axis('off')
+
+legend_elements = [Line2D([0], [0], marker='o', color='black', label='FF Company HQ (markers = fraction total market cap 21)',
+                          markerfacecolor='white', markersize=15),
+                   Line2D([0], [0], marker='o', color='firebrick', label='Shareholder HQ',
+                          markerfacecolor='firebrick', markersize=15, alpha=0.5),
+                   Patch(facecolor='firebrick', edgecolor='w', alpha=0.5,
+                         label='Share Value June 2021')]
+
+for slat, dlat, slon, dlon, shares in zip(equity_cnt_21ms["lat_sh"], equity_cnt_21ms["lat_ep"],
+                     equity_cnt_21ms["lon_sh"], equity_cnt_21ms["lon_ep"],
+                     equity_cnt_21ms["shares_2021"]):
+        plt.plot([slon, dlon-3], [slat, dlat], linewidth=shares/3000, color="firebrick", alpha=0.5)
+        plt.scatter( [slon], [slat], color="firebrick", alpha=0.5, s=shares/30)
+
+for slat, slon, mcap in zip(firm_cnt_21ms["lat_ep"], firm_cnt_21ms["lon_ep"],
+                     firm_cnt_21ms["frac_mcap_21"]):
+        plt.scatter([slon-3], [slat], color="white", alpha=0.7, s=mcap*100, edgecolor="black")
+        
+        
+plt.title("NEW MAJOR Shareholders 2020/1")
+plt.legend(handles=legend_elements, loc="center left")   
+
+## Plot world
+world.plot(figsize=(25,13), edgecolor="darkorange", color="bisque");
+
+plt.axis('off')
+
+legend_elements = [Line2D([0], [0], marker='o', color='black', label='EIUG Company HQ (fraction total market cap 21)',
+                          markerfacecolor='black', markersize=15),
+                   Line2D([0], [0], marker='o', color='firebrick', label='Shareholder HQ',
+                          markerfacecolor='firebrick', markersize=15, alpha=0.5),
+                   Patch(facecolor='firebrick', edgecolor='w', alpha=0.5,
+                         label='Share Value June 2021'),
+                   Line2D([0], [0], marker='o', color='steelblue', label='Shareholder HQ',
+                          markerfacecolor='steelblue', markersize=15, alpha=0.5),
+                   Patch(facecolor='steelblue', edgecolor='w', alpha=0.5,
+                         label='Share Value June 2020')]
+
+for slat, dlat, slon, dlon, shares in zip(equity_cnt_21ei["lat_sh"], equity_cnt_21ei["lat_ep"],
+                     equity_cnt_21ei["lon_sh"], equity_cnt_21ei["lon_ep"],
+                     equity_cnt_21ei["shares_2021"]):
+        plt.plot([slon, dlon-3], [slat, dlat], linewidth=shares/3000, color="firebrick", alpha=0.5)
+        plt.scatter( [slon], [slat], color="firebrick", alpha=0.5, s=shares/30)
+
+for slat, slon, mcap in zip(firm_cnt_21ei["lat_ep"], firm_cnt_21ei["lon_ep"],
+                     firm_cnt_21ei["frac_mcap_21"]):
+        plt.scatter([slon-3], [slat], color="white", alpha=0.5, s=mcap*100, edgecolor="black")
+        
+
+for slat, dlat, slon, dlon, shares in zip(equity_cntei["lat_sh"], equity_cntei["lat_ep"],
+                     equity_cntei["lon_sh"], equity_cntei["lon_ep"],
+                     equity_cntei["shares_2020"]):
+        plt.plot([slon, dlon-3], [slat, dlat], linewidth=shares/3000, color="steelblue", alpha=0.5)
+        plt.scatter( [slon], [slat], color="steelblue", alpha=0.5, s=shares/30)
+
+for slat, slon, mcap in zip(firm_cntei["lat_ep"], firm_cntei["lon_ep"],
+                     firm_cntei["frac_mcap"]):
+        plt.scatter([slon-3], [slat], color="black", alpha=1, s=mcap*100)
+        
+plt.title("EIUG Shareholders 2020/1")
+plt.legend(handles=legend_elements, loc="center left")   
+
+## Plot world
+world.plot(figsize=(25,13), edgecolor="darkorange", color="bisque");
+
+plt.axis('off')
+
+legend_elements = [Line2D([0], [0], marker='o', color='black', label='FF Company HQ (fraction total market cap 21)',
+                          markerfacecolor='white', markersize=15),
+                  Line2D([0], [0], marker='o', color='black', label='FF Company HQ (fraction total market cap 20)',
+                          markerfacecolor='black', markersize=15)]
+
+
+for slat, slon, mcap in zip(firm_cnt_21["lat_ep"], firm_cnt_21["lon_ep"],
+                     firm_cnt_21["frac_mcap_21"]):
+        plt.scatter([slon], [slat], color="white", alpha=0.5, s=mcap*50, edgecolor="black")
+        
+
+for slat, slon, mcap in zip(firm_cnt["lat_ep"], firm_cnt["lon_ep"],
+                     firm_cnt["frac_mcap"]):
+        plt.scatter([slon-3], [slat], color="black", alpha=0.7, s=mcap*50)
+        
+plt.title("South African E&Ps 2020/1")
+plt.legend(handles=legend_elements, loc="center left")   
+
+## Plot world
+world.plot(figsize=(25,13), edgecolor="darkorange", color="bisque");
+
+plt.axis('off')
+
+legend_elements = [Line2D([0], [0], marker='o', color='black', label='FF Company HQ (fraction total market cap 21)',
+                          markerfacecolor='white', markersize=15),
+                  Line2D([0], [0], marker='o', color='black', label='FF Company HQ (fraction total market cap 20)',
+                          markerfacecolor='black', markersize=15)]
+
+
+for slat, slon, mcap in zip(firm_cnt_21ei["lat_ep"], firm_cnt_21ei["lon_ep"],
+                     firm_cnt_21ei["frac_mcap_21"]):
+        plt.scatter([slon], [slat], color="white", alpha=0.5, s=mcap*50, edgecolor="black")
+        
+
+for slat, slon, mcap in zip(firm_cntei["lat_ep"], firm_cntei["lon_ep"],
+                     firm_cntei["frac_mcap"]):
+        plt.scatter([slon-3], [slat], color="black", alpha=0.7, s=mcap*50)
+        
+plt.title("EIUG E&Ps 2020/1")
+plt.legend(handles=legend_elements, loc="center left")   
+
+share_by_ct = gdf.groupby(["sh_cnt"]).sum()[["shares_2020"]].reset_index()
+share_by_ct21 = gdf.groupby(["sh_cnt"]).sum()[["shares_2021"]].reset_index()
+
+share_by_ct21.head()
+
+share_by_ct["log_shares"] = np.log10(share_by_ct["shares_2020"])
+share_by_ct21["log_shares"] = np.log10(share_by_ct21["shares_2021"])
+
+import seaborn as sns
+
+
+fig=sns.catplot(
+    data=share_by_ct, kind="bar",
+    x="sh_cnt", y="shares_2020", height=7, aspect=3, legend=False, palette="ch:.25")
+
+fig.set_xlabels("")
+fig.set_ylabels("shares (million USD)", size=16)
+plt.xticks(rotation="vertical", size=15)
+plt.legend(loc="upper left")
+
+
+import seaborn as sns
+
+
+fig=sns.catplot(
+    data=share_by_ct21, kind="bar",
+    x="sh_cnt", y="shares_2021", height=7, aspect=3, legend=False, palette="ch:.25")
+
+fig.set_xlabels("")
+fig.set_ylabels("shares (million USD)", size=16)
+plt.xticks(rotation="vertical", size=15)
+plt.legend(loc="upper left")
+
+
+import seaborn as sns
+
+
+fig=sns.catplot(
+    data=share_by_ct, kind="bar",
+    x="sh_cnt", y="log_shares", height=7, aspect=3, legend=False, palette="ch:.25")
+
+fig.set_xlabels("")
+fig.set_ylabels("Log(10) shares (million USD)", size=16)
+plt.xticks(rotation="vertical", size=15)
+plt.legend(loc="upper left")
+
+
+import seaborn as sns
+
+
+fig=sns.catplot(
+    data=share_by_ct21, kind="bar",
+    x="sh_cnt", y="log_shares", height=7, aspect=3, legend=False, palette="ch:.25")
+
+fig.set_xlabels("")
+fig.set_ylabels("Log(10) shares (million USD)", size=16)
+plt.xticks(rotation="vertical", size=15)
+plt.legend(loc="upper left")
+
+
+#Create combo chart
+fig, ax1 = plt.subplots(figsize=(23,12))
+color="ch:.25"
+
+#bar plot creation
+ax1.set_title('Payments to South African Government vs. GDP (2019)', fontsize=16)
+ax1.set_xlabel("")
+ax1 = sns.barplot(x='Company', y='p_2_gov', data = gov_sa, palette='ch:.25')
+ax1.tick_params(axis='y')
+plt.yticks(size=13, color="maroon")
+plt.xticks(rotation="vertical", size=15)
+ax1.set_ylabel("Payments Received (million USD)", size=16, color="maroon")
+
+#specify we want to share the same x-axis
+ax2 = ax1.twinx()
+
+#line plot creation
+ax2.set_ylabel('Percent 2019 GDP', fontsize=16, color="tab:cyan")
+ax2 = sns.scatterplot(x='Company', y='frac_gdp', data = gov_sa, color="tab:cyan", s=100)
+plt.yticks(size=13, color="tab:cyan")
+
+#show plot
+plt.show()

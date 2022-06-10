@@ -111,7 +111,7 @@ legend_elements = [Line2D([0], [0], marker='o', color='black', label='FF Company
                    Line2D([0], [0], marker='o', color='steelblue', label='Shareholder HQ',
                           markerfacecolor='steelblue', markersize=15, alpha=0.5),
                    Patch(facecolor='steelblue', edgecolor='w', alpha=0.5,
-                         label='Share Value June 2020')]
+                         label='Share Value June 2020 ($20 billion reference)')]
 
 for slat, dlat, slon, dlon, shares in zip(equity_cnt["lat_sh"], equity_cnt["lat_ep"],
                      equity_cnt["lon_sh"], equity_cnt["lon_ep"],
@@ -123,8 +123,7 @@ for slat, slon, mcap in zip(firm_cnt["lat_ep"], firm_cnt["lon_ep"],
                      firm_cnt["frac_mcap"]):
         plt.scatter([slon-3], [slat], color="black", alpha=0.7, s=mcap*50)
         
-plt.title("South African Firm Shareholders 2020")
-plt.legend(handles=legend_elements, loc="center left")   
+plt.legend(handles=legend_elements, loc="center left", fontsize=14)   
 
 ## Plot world
 world.plot(figsize=(25,13), edgecolor="darkorange", color="bisque");
@@ -136,7 +135,7 @@ legend_elements = [Line2D([0], [0], marker='o', color='black', label='FF Company
                    Line2D([0], [0], marker='o', color='firebrick', label='Shareholder HQ',
                           markerfacecolor='firebrick', markersize=15, alpha=0.5),
                    Patch(facecolor='firebrick', edgecolor='w', alpha=0.5,
-                         label='Share Value June 2021')]
+                         label='Share Value June 2021 ($20 billion reference)')]
 
 for slat, dlat, slon, dlon, shares in zip(equity_cnt_21["lat_sh"], equity_cnt_21["lat_ep"],
                      equity_cnt_21["lon_sh"], equity_cnt_21["lon_ep"],
@@ -148,8 +147,7 @@ for slat, slon, mcap in zip(firm_cnt_21["lat_ep"], firm_cnt_21["lon_ep"],
                      firm_cnt_21["frac_mcap_21"]):
         plt.scatter([slon-3], [slat], color="white", alpha=0.8, s=mcap*80, edgecolor="black")
         
-plt.title("South African Firm Shareholders 2021")
-plt.legend(handles=legend_elements, loc="center left")   
+plt.legend(handles=legend_elements, loc="center left", fontsize=14)   
 
 ## Plot world
 world.plot(figsize=(25,13), edgecolor="darkorange", color="bisque");
